@@ -1,8 +1,8 @@
 <?php
 /*
-Plugin Name: WHMCS Multisite Provisioning
-Plugin URI: http://premium.wpmudev.org/project/whmcs-multisite-provisioning/
-Description: This plugin allows remote control of Multisite provisioning from WHMCS. Includes provisioning for Subdomain, Subdirectory or Domain Mapping Wordpress Multisite installs.
+Plugin Name: Stripe Multisite Provisioning
+Plugin URI: http://premium.wpmudev.org/project/stripe-multisite-provisioning/
+Description: This plugin allows remote control of Multisite provisioning from Stripe. Includes provisioning for Subdomain, Subdirectory or Domain Mapping Wordpress Multisite installs.
 Author: WPMU DEV
 Author Uri: http://premium.wpmudev.org/
 Text Domain: mrp
@@ -31,21 +31,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 if ( !is_multisite() )
-exit( __('The WHMCS Multisite Provisioning plugin is only compatible with WordPress Multisite.', 'mrp') );
+exit( __('The Stripe Multisite Provisioning plugin is only compatible with WordPress Multisite.', 'mrp') );
 
 define('MRP_VERSION','1.1.0.8');
 
-$whmcs_multisite_provisioning = new WHMCS_Multisite_Provisioning();
+$stripe_multisite_provisioning = new Stripe_Multisite_Provisioning();
 
-class WHMCS_Multisite_Provisioning{
+class Stripe_Multisite_Provisioning{
 
-	//holds current datapacket from WHMCS
-	public $whmcs = null;
+	//holds current datapacket from Stripe
+	public $stripe = null;
 
 	//Settings from 'mrp_settings');
 	public $settings = '';
 
-	//Response values sent back to WHMCS
+	//Response values sent back to Stripe
 	public $response = array();
 
 	//Is Domain mapping
@@ -148,7 +148,7 @@ class WHMCS_Multisite_Provisioning{
 	*/
 	function on_network_admin_menu() {
 		if( function_exists( 'add_menu_page' ) ){
-			add_menu_page(__('WHMCS Provisioning','mrp'), __('WHMCS Provisioning','mrp'), 'manage_network_options', 'mrp-settings',array($this,'admin_settings_page'));
+			add_menu_page(__('Stripe Provisioning','mrp'), __('Stripe Provisioning','mrp'), 'manage_network_options', 'mrp-settings',array($this,'admin_settings_page'));
 		}
 	}
 
@@ -157,8 +157,8 @@ class WHMCS_Multisite_Provisioning{
 	*
 	*/
 	function on_query_vars($vars){
-		//Add any vars your going to be receiving from WHMCS
-		$vars[] = 'whmcs'; //WHMCS data array
+		//Add any vars your going to be receiving from Stripe
+		$vars[] = 'stripe'; //Stripe data array
 		return $vars;
 	}
 
@@ -169,13 +169,13 @@ class WHMCS_Multisite_Provisioning{
 	function on_parse_request($wp){
 		global $current_user;
 
-		// If no whmcs data then not for us
-		if(! array_key_exists('whmcs',$wp->query_vars)) return;
+		// If no stripe data then not for us
+		if(! array_key_exists('stripe',$wp->query_vars)) return;
 
 
-		$this->whmcs = $_REQUEST['whmcs'];
+		$this->stripe = $_REQUEST['stripe'];
 
-		$this->response = array(); //Values to be returned to whmcs'
+		$this->response = array(); //Values to be returned to stripe'
 
 		$this->settings = get_site_option('mrp_settings');
 
@@ -187,7 +187,7 @@ class WHMCS_Multisite_Provisioning{
 		$this->ips = array_filter( array_map('trim',explode("\n",$this->settings['ips'])), create_function('$str','return !empty($str);'));;
 
 		//See if we're ready and authorized to process requests
-		$user = wp_signon($this->whmcs['credentials'], false);
+		$user = wp_signon($this->stripe['credentials'], false);
 		if( ! is_wp_error($user)) wp_set_current_user($user->ID);
 
 		if(is_wp_error($user)){
@@ -198,7 +198,7 @@ class WHMCS_Multisite_Provisioning{
 		}
 		elseif(! current_user_can('manage_site')){
 			$this->response['error'] = __('You do not have permission to access this function.','mrp');
-		}elseif(! is_array($this->whmcs) ){
+		}elseif(! is_array($this->stripe) ){
 			$this->response['error'] = __('You can\'t create an empty site.', 'mrp');
 		}else{
 			$this->process_request();
@@ -211,12 +211,12 @@ class WHMCS_Multisite_Provisioning{
 	}
 
 	/**
-	* process_request - validated request in $this->whmcs
+	* process_request - validated request in $this->stripe
 	*
 	*/
 	function process_request(){
 
-		switch ($this->whmcs['action']){
+		switch ($this->stripe['action']){
 			case 'create' : $this->create_blog(); break;
 			case 'suspend' : $this->suspend_blog(); break;
 			case 'unsuspend' : $this->unsuspend_blog(); break;
@@ -229,8 +229,8 @@ class WHMCS_Multisite_Provisioning{
 	}
 
 	/**
-	* create_blog -  Creates a new Multisite blog using the parameters passed from whmcs
-	* $this->whmcs contains (at least)
+	* create_blog -  Creates a new Multisite blog using the parameters passed from stripe
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['title']
@@ -249,15 +249,15 @@ class WHMCS_Multisite_Provisioning{
 	function create_blog(){
 		global $wpdb,$current_user,$current_site,$base;
 
-		$domain = strtolower($this->whmcs['domain']);
-		$mapped_domain = strtolower($this->whmcs['mapped_domain']);
+		$domain = strtolower($this->stripe['domain']);
+		$mapped_domain = strtolower($this->stripe['mapped_domain']);
 
 		if( trim($domain) . trim($mapped_domain) == '') {
 			$this->response['error'] = "$domain: " . __('Domain name is empty!', 'mrp');
 			return;
 		}
 
-		if (! preg_match('|^([a-zA-Z0-9-])+$|', $this->whmcs['domain'])){
+		if (! preg_match('|^([a-zA-Z0-9-])+$|', $this->stripe['domain'])){
 			$this->response['error'] = "$domain: " . __('Is not a valid domain name, alphanumeric and "-" only', 'mrp');
 			return;
 		}
@@ -285,14 +285,14 @@ class WHMCS_Multisite_Provisioning{
 		//			}
 		//		}
 
-		$email = sanitize_email( $this->whmcs['email'] );
+		$email = sanitize_email( $this->stripe['email'] );
 		$user_id = email_exists($email);
 
 
 		if($user_id){
-			$user_name = get_userdata($user_id)->user_login; // Can't change name so pass back to update WHMCS
+			$user_name = get_userdata($user_id)->user_login; // Can't change name so pass back to update Stripe
 		} else{
-			$user_name = (empty($this->whmcs['user_name'])) ? sanitize_user( strstr($email, '@', true) ) : sanitize_user($this->whmcs['user_name'], true);
+			$user_name = (empty($this->stripe['user_name'])) ? sanitize_user( strstr($email, '@', true) ) : sanitize_user($this->stripe['user_name'], true);
 			$ndx = 1;
 			$un = $user_name;
 			while($user = get_user_by('login', $user_name)){
@@ -300,12 +300,12 @@ class WHMCS_Multisite_Provisioning{
 			}
 		}
 
-		$this->response['user_name'] = $user_name; //Send back to WHMCS
-		$password = $this->whmcs['password'];
+		$this->response['user_name'] = $user_name; //Send back to Stripe
+		$password = $this->stripe['password'];
 
-		$title = (empty($this->whmcs['title']) ) ? '' : $this->whmcs['title'];
+		$title = (empty($this->stripe['title']) ) ? '' : $this->stripe['title'];
 
-		$credentials = $this->whmcs['credentials'];
+		$credentials = $this->stripe['credentials'];
 
 
 		if ( empty( $domain ) ){
@@ -333,8 +333,8 @@ class WHMCS_Multisite_Provisioning{
 			$nd = $newdomain; //Remember the originl $newdomain
 			$blog_details = get_blog_details(array('domain' => $newdomain, 'path' => $path));
 			while(! empty($blog_details)){
-				//				$whmcs_settings = get_blog_option($blog_details->blog_id,'whmcs_settings');
-				//				if ( $whmcs_settings && $whmcs_settings['client_id'] == $credentials['whmcs_client_id']){	//Found owner of this blog
+				//				$stripe_settings = get_blog_option($blog_details->blog_id,'stripe_settings');
+				//				if ( $stripe_settings && $stripe_settings['client_id'] == $credentials['stripe_client_id']){	//Found owner of this blog
 				//					break;
 				//				}
 				$newdomain = str_replace($domain, $domain . $ndx++, $nd);
@@ -351,8 +351,8 @@ class WHMCS_Multisite_Provisioning{
 			$p = $path; // remember original path
 			$blog_details = get_blog_details(array('domain' => $newdomain, 'path' => $path));
 			while(! empty($blog_details)){  //Already there
-				//				$whmcs_settings = get_blog_option($blog_details->blog_id,'whmcs_settings');
-				//				if ( $whmcs_settings && $whmcs_settings['client_id'] == $credentials['whmcs_client_id']){	//Found an owner of this blog
+				//				$stripe_settings = get_blog_option($blog_details->blog_id,'stripe_settings');
+				//				if ( $stripe_settings && $stripe_settings['client_id'] == $credentials['stripe_client_id']){	//Found an owner of this blog
 				//
 				//					break;
 				//				}
@@ -365,7 +365,7 @@ class WHMCS_Multisite_Provisioning{
 		$this->response['domain'] = $newdomain;
 		$this->response['path'] = $path;
 
-		if ( !$user_id ) { // Create a new user with WHMCS password
+		if ( !$user_id ) { // Create a new user with Stripe password
 			//$password = wp_generate_password( 12, false );
 			$user_id = wpmu_create_user( $user_name, $password, $email );
 			if ( false == $user_id ){
@@ -373,17 +373,17 @@ class WHMCS_Multisite_Provisioning{
 				return;
 			}
 			else {
-				if($this->whmcs['last_name']) update_user_option($user_id, 'last_name', $this->whmcs['last_name'], true);
-				if($this->whmcs['first_name']) update_user_option($user_id, 'first_name', $this->whmcs['first_name'], true);
+				if($this->stripe['last_name']) update_user_option($user_id, 'last_name', $this->stripe['last_name'], true);
+				if($this->stripe['first_name']) update_user_option($user_id, 'first_name', $this->stripe['first_name'], true);
 
-				if($this->whmcs['nickname']) update_user_option($user_id, 'nickname', $this->whmcs['nickname'], true);
-				else update_user_option($user_id, 'nickname', $this->whmcs['first_name'], true);
+				if($this->stripe['nickname']) update_user_option($user_id, 'nickname', $this->stripe['nickname'], true);
+				else update_user_option($user_id, 'nickname', $this->stripe['first_name'], true);
 
 				wp_new_user_notification( $user_id, $password );
 			}
 		} else {
 			//Already in database
-			$this->response['password'] =__('PREVIOUSLY SET', 'mrp'); //Send back to WHMCS
+			$this->response['password'] =__('PREVIOUSLY SET', 'mrp'); //Send back to Stripe
 		}
 
 		//return the login
@@ -404,11 +404,11 @@ class WHMCS_Multisite_Provisioning{
 			return;
 		}
 
-		$this->response['blog_id'] = $id;  //Send back to WHMCS
+		$this->response['blog_id'] = $id;  //Send back to Stripe
 
 		//add default role
-		if ($this->whmcs['default_role']) {
-			$role_name=$this->whmcs['default_role'];
+		if ($this->stripe['default_role']) {
+			$role_name=$this->stripe['default_role'];
 			$role_slug=str_replace(' ','_',strtolower($role_name));
 			$role_slug=preg_replace("/[^a-zA-Z0-9\s]/", "", $role_slug);
 
@@ -425,15 +425,15 @@ class WHMCS_Multisite_Provisioning{
 		if ( !is_super_admin( $user_id ) && !get_user_option( 'primary_blog', $user_id ) )
 		update_user_option( $user_id, 'primary_blog', $id, true );
 
-		//Save the WHMCS product data for this blog
-		$whmcs_settings = get_blog_option($id,'whmcs_settings');
-		if (! $whmcs_settings) $whmcs_settings = array();
+		//Save the Stripe product data for this blog
+		$stripe_settings = get_blog_option($id,'stripe_settings');
+		if (! $stripe_settings) $stripe_settings = array();
 
-		$whmcs_settings['client_id'] = $credentials['whmcs_client_id'];
-		$whmcs_settings['service_id'] = $credentials['whmcs_service_id'];
-		$whmcs_settings['product_id'] = $credentials['whmcs_product_id'];
+		$stripe_settings['client_id'] = $credentials['stripe_client_id'];
+		$stripe_settings['service_id'] = $credentials['stripe_service_id'];
+		$stripe_settings['product_id'] = $credentials['stripe_product_id'];
 
-		update_blog_option($id, 'whmcs_settings', $whmcs_settings);
+		update_blog_option($id, 'stripe_settings', $stripe_settings);
 
 		$content_mail = sprintf( __( "New site created by %1s\n\nAddress: %2s\nName: %3s"), $current_user->user_login , get_site_url( $id ), stripslashes( $title ) );
 		wp_mail( get_site_option('admin_email'), sprintf( __( '[%s] New Site Created' ), $current_site->site_name ), $content_mail, 'From: "Site Admin" <' . get_site_option( 'admin_email' ) . '>' );
@@ -450,8 +450,8 @@ class WHMCS_Multisite_Provisioning{
 		}
 
 		//Blog specific stuff
-		if (is_numeric($this->whmcs['upload_space'])){
-			update_blog_option($id, 'blog_upload_space',intval($this->whmcs['upload_space']));
+		if (is_numeric($this->stripe['upload_space'])){
+			update_blog_option($id, 'blog_upload_space',intval($this->stripe['upload_space']));
 		}
 
 		//Create the blog uploads directory
@@ -465,7 +465,7 @@ class WHMCS_Multisite_Provisioning{
 		*/
 		global $wpdb,$current_user,$current_site,$base, $psts;
 
-		$level = trim( $this->whmcs['level'] );
+		$level = trim( $this->stripe['level'] );
 
 		if( !empty( $level ) ) { //Need to handle Pro-Sites?
 			//Is pro-sites installed?
@@ -501,10 +501,10 @@ class WHMCS_Multisite_Provisioning{
 				$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->base_prefix . "pro_sites SET level=%d WHERE blog_ID=%s", $level_id, $id));
 				$psts->record_stat($id, 'upgrade');
 			} else {
-				$wpdb->query($wpdb->prepare("INSERT INTO " . $wpdb->base_prefix . "pro_sites (blog_ID, expire, level, gateway, term) VALUES (%d, '9999999999', %s, 'WHMCS', 'Permanent')", $id, $level_id));
+				$wpdb->query($wpdb->prepare("INSERT INTO " . $wpdb->base_prefix . "pro_sites (blog_ID, expire, level, gateway, term) VALUES (%d, '9999999999', %s, 'Stripe', 'Permanent')", $id, $level_id));
 				$psts->record_stat($id, 'signup');
 			}
-			$psts->log_action($id, __("WHMCS created blog id {$id}. Expiration and payments will be handled by WHMCS", 'mrp') );
+			$psts->log_action($id, __("Stripe created blog id {$id}. Expiration and payments will be handled by Stripe", 'mrp') );
 
 		}
 		//print_r($this->db);
@@ -516,8 +516,8 @@ class WHMCS_Multisite_Provisioning{
 
 	///// Change LEVEL BLOG
 	/**
-	* changepackage - command to suspend a blog from WHMCS
-	* $this->whmcs contains (at least)
+	* changepackage - command to suspend a blog from Stripe
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['credentials']
@@ -526,10 +526,10 @@ class WHMCS_Multisite_Provisioning{
 	function changepackage(){
 		global $wpdb,$base, $psts;
 
-		$id = intval($this->whmcs['blog_id']);
-		$domain = $this->whmcs['domain'];
+		$id = intval($this->stripe['blog_id']);
+		$domain = $this->stripe['domain'];
 		$details = get_blog_details($id);
-		$level = $this->whmcs['level'];
+		$level = $this->stripe['level'];
 
 		if( !empty( $level ) ) {
 
@@ -560,7 +560,7 @@ class WHMCS_Multisite_Provisioning{
 			if(!empty($ch_blog->blog_ID)){
 				$update_level = $wpdb->query($wpdb->prepare("UPDATE " . $wpdb->base_prefix . "pro_sites SET level=%d WHERE blog_ID=%d", $level_id, $id));
 			} else {
-				$update_level = $wpdb->query($wpdb->prepare("INSERT INTO " . $wpdb->base_prefix . "pro_sites (blog_ID, expire, level, gateway, term) VALUES (%d, '9999999999', %d, 'WHMCS', 'Permanent')", $id, $level_id));
+				$update_level = $wpdb->query($wpdb->prepare("INSERT INTO " . $wpdb->base_prefix . "pro_sites (blog_ID, expire, level, gateway, term) VALUES (%d, '9999999999', %d, 'Stripe', 'Permanent')", $id, $level_id));
 			}
 
 			if( $update_level === false ){
@@ -569,14 +569,14 @@ class WHMCS_Multisite_Provisioning{
 			}
 			$this->response['message'] = "success";
 			$psts->record_stat($id, 'upgrade');
-			$psts->log_action($id, __("WHMCS changed Pro-Sites level to {$levels[$level_id]['name']} (Level ID {$level_id}).", 'mrp') );
+			$psts->log_action($id, __("Stripe changed Pro-Sites level to {$levels[$level_id]['name']} (Level ID {$level_id}).", 'mrp') );
 		}
 
 	}
 
 	/**
-	* suspend_blog - command to suspend a blog from WHMCS
-	* $this->whmcs contains (at least)
+	* suspend_blog - command to suspend a blog from Stripe
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['credentials']
@@ -585,8 +585,8 @@ class WHMCS_Multisite_Provisioning{
 		global $psts;
 
 
-		$id = intval($this->whmcs['blog_id']);
-		$domain = $this->whmcs['domain'];
+		$id = intval($this->stripe['blog_id']);
+		$domain = $this->stripe['domain'];
 
 		$details = get_blog_details($id);
 
@@ -598,14 +598,14 @@ class WHMCS_Multisite_Provisioning{
 			return;
 		}
 
-		if( !empty($psts) ) $psts->log_action($id, __("WHMCS SUSPENDED blog id {$id}.", 'mrp') );
+		if( !empty($psts) ) $psts->log_action($id, __("Stripe SUSPENDED blog id {$id}.", 'mrp') );
 
 		update_blog_status( $id, 'deleted', '1' );
 	}
 
 	/**
-	* unsuspend_blog - command to suspend a blog from WHMCS
-	* $this->whmcs contains (at least)
+	* unsuspend_blog - command to suspend a blog from Stripe
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['credentials']
@@ -614,8 +614,8 @@ class WHMCS_Multisite_Provisioning{
 	function unsuspend_blog(){
 		global $psts;
 
-		$id = intval($this->whmcs['blog_id']);
-		$domain = $this->whmcs['domain'];
+		$id = intval($this->stripe['blog_id']);
+		$domain = $this->stripe['domain'];
 
 		$details = get_blog_details($id);
 
@@ -626,15 +626,15 @@ class WHMCS_Multisite_Provisioning{
 			return;
 		}
 
-		if( !empty($psts) ) $psts->log_action($id, __("WHMCS UNSUSPENDED blog id {$id}.", 'mrp') );
+		if( !empty($psts) ) $psts->log_action($id, __("Stripe UNSUSPENDED blog id {$id}.", 'mrp') );
 
 		update_blog_status( $id, 'deleted', '0' );
 	}
 
 	/**
-	* terminate_blog - command to terminate (delete) a blog from WHMCS
-	* Once called from WHMCS it can only be revoked by a superadmin on Wordpress. WHMCS cannot change further.
-	* $this->whmcs contains (at least)
+	* terminate_blog - command to terminate (delete) a blog from Stripe
+	* Once called from Stripe it can only be revoked by a superadmin on Wordpress. Stripe cannot change further.
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['credentials']
@@ -643,8 +643,8 @@ class WHMCS_Multisite_Provisioning{
 	function terminate_blog(){
 		global $psts;
 
-		$id = intval($this->whmcs['blog_id']);
-		$domain = $this->whmcs['domain'];
+		$id = intval($this->stripe['blog_id']);
+		$domain = $this->stripe['domain'];
 
 		$details = get_blog_details($id);
 
@@ -656,14 +656,14 @@ class WHMCS_Multisite_Provisioning{
 			return;
 		}
 
-		if( !empty($psts) ) $psts->log_action($id, __("WHMCS TERMINATED blog id {$id}.", 'mrp') );
+		if( !empty($psts) ) $psts->log_action($id, __("Stripe TERMINATED blog id {$id}.", 'mrp') );
 
 		wpmu_delete_blog( $id, true );
 	}
 
 	/**
 	* set_password - command to set the password for the user on a blog
-	* $this->whmcs contains (at least)
+	* $this->stripe contains (at least)
 	* ['action']
 	* ['domain']
 	* ['email']
@@ -674,10 +674,10 @@ class WHMCS_Multisite_Provisioning{
 	*/
 	function set_password(){
 
-		$domain = strtolower($this->whmcs['domain']);
-		$password = $this->whmcs['password'];
-		$email = sanitize_email($this->whmcs['email']);
-		$user_name = sanitize_user($this->whmcs['user_name']);
+		$domain = strtolower($this->stripe['domain']);
+		$password = $this->stripe['password'];
+		$email = sanitize_email($this->stripe['email']);
+		$user_name = sanitize_user($this->stripe['user_name']);
 		$user_id = email_exists($email);
 
 		//Does User exist?
@@ -703,19 +703,19 @@ class WHMCS_Multisite_Provisioning{
 		$settings = get_site_option('mrp_settings');
 		?>
 		<div class="wrap">
-			<h2><?php _e('WHMCS Multisite Provisioning','mrp'); echo " " . MRP_VERSION; ?></h2>
+			<h2><?php _e('Stripe Multisite Provisioning','mrp'); echo " " . MRP_VERSION; ?></h2>
 			<div class="metabox-holder">
 				<div class="postbox">
 					<div class="inside">
 						<form method="POST" action="#">
 							<?php wp_nonce_field('mrp_admin','mrp_wpnonce'); ?>
-							<h3 class="hndle"><?php _e('WHMCS Multisite Provisioning','mrp'); ?></h3>
+							<h3 class="hndle"><?php _e('Stripe Multisite Provisioning','mrp'); ?></h3>
 							<table class="form-table">
 								<thead>
 								</thead>
 								<tbody>
 									<tr>
-										<th><?php _e('Remote WHMCS host:','mrp'); ?></th>
+										<th><?php _e('Remote Stripe host:','mrp'); ?></th>
 										<td><input type="text" name="mrp[remote_host]" size="40" value="<?php echo esc_attr($settings['remote_host']); ?>" /></td>
 									</tr>
 									<!--
@@ -743,8 +743,8 @@ class WHMCS_Multisite_Provisioning{
 												<input type="checkbox" id="mrp[debug]" name="mrp[debug]" value="1" <?php checked($settings['debug']); ?>/>
 												<span class="description">Turn on debugging</span>
 											</label>
-											<p><span class="description"><?php _e('This plugin prevents sending debug messages generated by other plugins to WHMCS.','mrp'); ?></span></p>
-											<p><span class="description"><?php _e('Check debug to allow these message to pass to WHMCS so they can appear in the WHMCS Modules Log there.','mrp'); ?></span></p>
+											<p><span class="description"><?php _e('This plugin prevents sending debug messages generated by other plugins to Stripe.','mrp'); ?></span></p>
+											<p><span class="description"><?php _e('Check debug to allow these message to pass to Stripe so they can appear in the Stripe Modules Log there.','mrp'); ?></span></p>
 										</td>
 									</tr>
 
