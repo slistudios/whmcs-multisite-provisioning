@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 function whmcs_multisite_ConfigOptions() {
 
-	if( !defined('WPMU_WHMCS_SERVER_VERSION ') ) define('WPMU_WHMCS_SERVER_VERSION', '2.0');
+	if( !defined('WPMU_WHMCS_SERVER_VERSION') ) define('WPMU_WHMCS_SERVER_VERSION', '2.0');
 
 	# Should return an array of the module options for each product - maximum of 24
 
