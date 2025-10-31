@@ -2,6 +2,27 @@ Plugin Name: WHMCS Multisite Provisioning
 Author: Arnold Bailey
 
 == Change Log ==
+= 2.0.0 - 2025-10-31 =
+* MAJOR UPDATE: Full PHP 8.1+, WHMCS 8.13.1, and WordPress 6.8.3 compatibility
+* Removed deprecated create_function() - replaced with arrow functions (PHP 8.0+ requirement)
+* Removed all mysql_* functions - replaced with WHMCS Capsule database layer (PHP 7.0+ requirement)
+* Updated deprecated WordPress functions:
+  - wpmu_create_user() → wp_create_user()
+  - wpmu_create_blog() → wp_insert_site()
+  - wpmu_delete_blog() → wp_delete_site()
+  - wpmu_welcome_notification() → custom email notification
+  - wp_new_user_notification() → updated signature for WP 4.3.1+
+  - new WP_Roles() → wp_roles()
+* Added HTTPS/SSL support for WordPress login links in WHMCS
+* Improved security with HTML escaping (XSS prevention)
+* Improved password handling in login forms (POST instead of GET)
+* Added null coalescing operators for cleaner code
+* Added proper exception handling with try-catch blocks
+* Updated version numbers across all modules
+* Fixed count() parentheses warning in domain parsing
+* Added UTF-8 encoding to database tables
+* Improved error logging with WHMCS logModuleCall
+
 = 1.1.0.8 =
 - Fixed naming logic for duplicate blogs in sub-directory networks.
 

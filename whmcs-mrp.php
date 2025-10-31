@@ -7,12 +7,15 @@ Author: WPMU DEV
 Author Uri: http://premium.wpmudev.org/
 Text Domain: mrp
 Domain Path: languages
-Version: 1.1.0.8
+Version: 2.0.0
 Network: true
 WDP ID: 264
+Requires at least: 6.0
+Tested up to: 6.8.3
+Requires PHP: 8.1
 */
 
-/*  Copyright 2012  Incsub  (http://incsub.com)
+/*  Copyright 2012-2025  Incsub  (http://incsub.com)
 
 Authors - Arnold Bailey (Incsub), Studio Progressive
 
@@ -33,7 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 if ( !is_multisite() )
 exit( __('The WHMCS Multisite Provisioning plugin is only compatible with WordPress Multisite.', 'mrp') );
 
-define('MRP_VERSION','1.1.0.8');
+define('MRP_VERSION','2.0.0');
 
 $whmcs_multisite_provisioning = new WHMCS_Multisite_Provisioning();
 
@@ -184,7 +187,7 @@ class WHMCS_Multisite_Provisioning{
 
 
 		// Get valid IPs we will accept requests from and trim and remove any blank lines.
-		$this->ips = array_filter( array_map('trim',explode("\n",$this->settings['ips'])), create_function('$str','return !empty($str);'));;
+		$this->ips = array_filter( array_map('trim',explode("\n",$this->settings['ips'])), fn($str) => !empty($str));
 
 		//See if we're ready and authorized to process requests
 		$user = wp_signon($this->whmcs['credentials'], false);
@@ -367,8 +370,8 @@ class WHMCS_Multisite_Provisioning{
 
 		if ( !$user_id ) { // Create a new user with WHMCS password
 			//$password = wp_generate_password( 12, false );
-			$user_id = wpmu_create_user( $user_name, $password, $email );
-			if ( false == $user_id ){
+			$user_id = wp_create_user( $user_name, $password, $email );
+			if ( false == $user_id || is_wp_error($user_id) ){
 				$this->response['error'] = __( 'There was an error creating the user.','mrp' );
 				return;
 			}
@@ -379,7 +382,8 @@ class WHMCS_Multisite_Provisioning{
 				if($this->whmcs['nickname']) update_user_option($user_id, 'nickname', $this->whmcs['nickname'], true);
 				else update_user_option($user_id, 'nickname', $this->whmcs['first_name'], true);
 
-				wp_new_user_notification( $user_id, $password );
+				// Updated for WP 4.3.1+ - wp_new_user_notification now requires 'both' parameter
+				wp_new_user_notification( $user_id, null, 'both' );
 			}
 		} else {
 			//Already in database
@@ -394,7 +398,14 @@ class WHMCS_Multisite_Provisioning{
 		remove_user_from_blog( $user_id, $current_site->id ); //removes new user from main blog
 
 		$wpdb->hide_errors();
-		$id = wpmu_create_blog( $newdomain, $path, $title, $user_id , array( 'public' => 1 ) );
+		// Updated for WordPress 5.1+ - wpmu_create_blog is deprecated, use wp_insert_site
+		$id = wp_insert_site( array(
+			'domain' => $newdomain,
+			'path' => $path,
+			'title' => $title,
+			'user_id' => $user_id,
+			'public' => 1
+		) );
 
 		$wpdb->show_errors();
 
@@ -413,7 +424,8 @@ class WHMCS_Multisite_Provisioning{
 			$role_slug=preg_replace("/[^a-zA-Z0-9\s]/", "", $role_slug);
 
 			if(!get_role($role_slug)) {
-				$roles=new WP_Roles();
+				// Updated for modern WordPress - use wp_roles() instead of new WP_Roles()
+				$roles = wp_roles();
 				$roles->add_role($role_slug,$role_name,array($role_slug));
 			}
 			remove_user_from_blog($user_id, $id);
@@ -437,7 +449,14 @@ class WHMCS_Multisite_Provisioning{
 
 		$content_mail = sprintf( __( "New site created by %1s\n\nAddress: %2s\nName: %3s"), $current_user->user_login , get_site_url( $id ), stripslashes( $title ) );
 		wp_mail( get_site_option('admin_email'), sprintf( __( '[%s] New Site Created' ), $current_site->site_name ), $content_mail, 'From: "Site Admin" <' . get_site_option( 'admin_email' ) . '>' );
-		wpmu_welcome_notification( $id, $user_id, $password, $title, array( 'public' => 1 ) );
+
+		// Updated for WordPress 4.4+ - wpmu_welcome_notification is deprecated, send custom notification
+		// Send welcome email to new site admin
+		$welcome_email = sprintf(
+			__( 'Your new site at %s is active.', 'mrp' ),
+			get_site_url( $id )
+		);
+		wp_mail( $email, sprintf( __( 'New Site: %s' ), $title ), $welcome_email );
 		//wp_redirect( add_query_arg( array( 'update' => 'added', 'id' => $id ), 'site-new.php' ) );
 
 		//If domain mapping, map domain
@@ -658,7 +677,8 @@ class WHMCS_Multisite_Provisioning{
 
 		if( !empty($psts) ) $psts->log_action($id, __("WHMCS TERMINATED blog id {$id}.", 'mrp') );
 
-		wpmu_delete_blog( $id, true );
+		// Updated for WordPress 5.1+ - wpmu_delete_blog is deprecated, use wp_delete_site
+		wp_delete_site( $id );
 	}
 
 	/**

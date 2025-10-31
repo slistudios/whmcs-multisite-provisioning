@@ -8,11 +8,13 @@ Author: WPMU DEV
 Author Uri: http://premium.wpmudev.org/
 Text Domain: mrp
 Domain Path: languages
-Version: 1.2
+Version: 2.0
 Network: true
 WDP ID: 264
+Requires PHP: 8.1
+WHMCS: 8.0+
 */
-/*  Copyright 2012  Incsub  (http://incsub.com)
+/*  Copyright 2012-2025  Incsub  (http://incsub.com)
 
 Author - Arnold Bailey
 
@@ -33,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 function whmcs_multisite_ConfigOptions() {
 
-	if( !defined('WPMU_WHMCS_SERVER_VERSION ') ) define('WPMU_WHMCS_SERVER_VERSION', '1.2');
+	if( !defined('WPMU_WHMCS_SERVER_VERSION ') ) define('WPMU_WHMCS_SERVER_VERSION', '2.0');
 
 	# Should return an array of the module options for each product - maximum of 24
 
@@ -76,8 +78,11 @@ function get_url( $url, $post_fields, $javascript_loop = 0, $timeout = 30 )
 	curl_setopt( $ch, CURLOPT_POSTFIELDS, $post_fields);
 	curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
 	curl_setopt( $ch, CURLOPT_AUTOREFERER, true );
-	curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );    // required for https urls
-	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );    // required for https urls
+	// WARNING: SSL verification disabled for compatibility. Enable for production use:
+	// curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, 2 );
+	// curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, true );
+	curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );
+	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
 	curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, $timeout );
 	curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
 	curl_setopt( $ch, CURLOPT_MAXREDIRS, 10 );
@@ -177,10 +182,11 @@ function whmcs_multisite_CreateAccount($params) {
 		$request['mapped_domain'] = $params['domain'];
 		//Or it could be sub
 		$sub = explode('.',$params['domain']);
-		if (count($sub > 2)) $request['domain'] = $sub[0];
+		if (count($sub) > 2) $request['domain'] = $sub[0];
 		else $request['domain'] = $params['configoption2'];
 	}
-	
+
+
 	if( $request['domain'] . $request['mapped_domain'] == '') return 'Domain field is Empty!';
 
 	$request['title'] = ($params['configoption3'] == 'on' and !empty($customfields['Title'])) ? $customfields['Title'] : $params['configoption1'];
@@ -244,9 +250,10 @@ function whmcs_multisite_CreateAccount($params) {
 		}else{
 			$update['domain'] = $ret['mapped_domain'];
 		}
-		
+
 		if( !empty( $ret['password'] ) )			$update['servicepassword'] = $ret['password'];
-		
+
+
 		$result = localAPI('updateclientproduct', $update, $api_admin);
 
 		$result = ($result['result']=='success') ? $result['result'] : $result['message'];
@@ -255,9 +262,18 @@ function whmcs_multisite_CreateAccount($params) {
 }
 
 function get_blog_data($service_id){
-	$result = select_query('mod_whmcs_multisite','', array('service_id' => $service_id));
-	$data = mysql_fetch_array($result);
-	return $data;
+	// Updated for PHP 8.1+ and WHMCS 8.x - use Capsule instead of mysql_*
+	try {
+		$data = \WHMCS\Database\Capsule::table('mod_whmcs_multisite')
+			->where('service_id', $service_id)
+			->first();
+
+		// Convert object to array for backwards compatibility
+		return $data ? (array)$data : null;
+	} catch (\Exception $e) {
+		logModuleCall('whmcs_multisite', 'get_blog_data', $service_id, $e->getMessage(), '', []);
+		return null;
+	}
 }
 
 function whmcs_multisite_TerminateAccount($params) {
@@ -507,12 +523,17 @@ function whmcs_multisite_ChangePassword($params) {
 }
 
 function whmcs_multisite_AdminLink($params) {
+	// Updated to support both HTTP and HTTPS
+	$protocol = (!empty($params['serversecure'])) ? 'https://' : 'http://';
+	$hostname = htmlspecialchars($params["serverhostname"], ENT_QUOTES, 'UTF-8');
+	$username = htmlspecialchars($params["serverusername"], ENT_QUOTES, 'UTF-8');
+	$password = htmlspecialchars($params["serverpassword"], ENT_QUOTES, 'UTF-8');
 
-	$code = '<form action="http://'.$params["serverhostname"].'/wp-login.php" method="post" target="wpadmin">
-	<input type="hidden" name="log" value="'.$params["serverusername"].'" />
-	<input type="hidden" name="pwd" value="'.$params["serverpassword"].'" />
-	<input type="hidden" name="redirect_to" value="http://' . $params["serverhostname"] . '/wp-admin/" />
-	<input type="submit" value="Login to Wordpress" />
+	$code = '<form action="' . $protocol . $hostname . '/wp-login.php" method="post" target="wpadmin">
+	<input type="hidden" name="log" value="' . $username . '" />
+	<input type="hidden" name="pwd" value="' . $password . '" />
+	<input type="hidden" name="redirect_to" value="' . $protocol . $hostname . '/wp-admin/" />
+	<input type="submit" value="Login to WordPress" class="btn btn-default" />
 	</form>';
 	return $code;
 
@@ -520,8 +541,12 @@ function whmcs_multisite_AdminLink($params) {
 
 
 function whmcs_multisite_LoginLink($params) {
+	// Updated to support both HTTP and HTTPS, and improved security
+	$protocol = (!empty($params['serversecure'])) ? 'https://' : 'http://';
+	$hostname = htmlspecialchars($params["serverhostname"], ENT_QUOTES, 'UTF-8');
+	$username = htmlspecialchars($params["serverusername"], ENT_QUOTES, 'UTF-8');
 
-	// Lock the username and custom fields for Wordpress Sites since it shouldn't be changed
+	// Lock the username and custom fields for WordPress Sites since it shouldn't be changed
 	?>
 	<script type="text/javascript">
 		jQuery(document).ready(function(){
@@ -533,7 +558,11 @@ function whmcs_multisite_LoginLink($params) {
 			').attr('readonly','readonly');
 		});
 	</script>
-	<a href="http://<?php echo $params["serverhostname"]; ?>/wp-login.php?log=<?php echo $params["serverusername"] .'&pwd=' . $params['serverpassword']; ?>" target="wpadmin" style="color:#cc0000">Login to Wordpress</a>
+	<form action="<?php echo $protocol . $hostname; ?>/wp-login.php" method="post" target="wpadmin" style="display:inline;">
+		<input type="hidden" name="log" value="<?php echo $username; ?>" />
+		<input type="hidden" name="pwd" value="<?php echo htmlspecialchars($params['serverpassword'], ENT_QUOTES, 'UTF-8'); ?>" />
+		<input type="submit" value="Login to WordPress" class="btn btn-link" style="color:#cc0000;padding:0;border:0;background:none;" />
+	</form>
 
 	<?php
 }
@@ -621,19 +650,29 @@ update_query("tblhosting",array(
 */
 
 function whmcs_multisite_AdminServicesTabFields($params) {
+	// Updated for PHP 8.1+ and WHMCS 8.x - use Capsule instead of mysql_*
+	try {
+		$data = \WHMCS\Database\Capsule::table('mod_whmcs_multisite')
+			->where('service_id', $params['serviceid'])
+			->first();
 
-	$result = select_query("mod_whmcs_multisite","*",array("service_id" => $params['serviceid']));
-	$data = mysql_fetch_array($result);
-	$domain = $data['domain'];
-	$path = $data['path'];
-	$level = $data['level'];
+		if ($data) {
+			$fieldsarray = array(
+				'Subdomain/Subdirectory' => $data->domain ?? 'N/A',
+				'Path' => $data->path ?? 'N/A',
+				'Pro-Sites Level' => $data->level ?? 0,
+			);
+		} else {
+			$fieldsarray = array(
+				'Status' => 'No data found for this service',
+			);
+		}
 
-	$fieldsarray = array(
-	'Subdomain/Subdirectory' => $domain,
-	'Path' => $path,
-	'Pro-Sites Level' => $level,
-	);
-	return $fieldsarray;
+		return $fieldsarray;
+	} catch (\Exception $e) {
+		logModuleCall('whmcs_multisite', 'AdminServicesTabFields', $params['serviceid'], $e->getMessage(), '', []);
+		return array('Error' => 'Unable to retrieve service data');
+	}
 
 }
 

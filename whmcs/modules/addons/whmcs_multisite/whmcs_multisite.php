@@ -8,12 +8,14 @@ Author: WPMU DEV
 Author Uri: http://premium.wpmudev.org/
 Text Domain: mrp
 Domain Path: languages
-Version: 1.2
+Version: 2.0
 Network: true
 WDP ID: 264
+Requires PHP: 8.1
+WHMCS: 8.0+
 */
 
-/*  Copyright 2012  Incsub  (http://incsub.com)
+/*  Copyright 2012-2025  Incsub  (http://incsub.com)
 
 Author - Arnold Bailey
 
@@ -37,9 +39,10 @@ die("This file cannot be accessed directly");
 function whmcs_multisite_config() {
 	$configarray = array(
 	"name" => "WHMCS Multisite Provisioning",
-	"version" => "1.2",
+	"version" => "2.0",
 	"author" => "wpmudev.org",
 	"language" => "english",
+	"description" => "WordPress Multisite Provisioning addon for WHMCS 8.x - PHP 8.1+ compatible",
 
 	"fields" => array(
 
@@ -56,24 +59,37 @@ function whmcs_multisite_config() {
 
 function whmcs_multisite_activate() {
 
-	# Create Custom DB Table
-	$query = "CREATE TABLE IF NOT EXISTS `mod_whmcs_multisite`
-	(`id` INT( 1 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-	`blog_id` INT  NOT NULL,
-	`service_id` INT  NOT NULL,
-	`domain` TEXT NOT NULL,
-	`path` TEXT NOT NULL,
-	`level` INT NOT NULL,
-	KEY `service_id` (`service_id`, `blog_id`)
-	)";
+	// Updated for PHP 8.1+ and WHMCS 8.x - use Capsule (Laravel's query builder)
+	try {
+		// Check if table exists using WHMCS database functions
+		if (!function_exists('full_query')) {
+			// Fallback to Capsule for WHMCS 8.x
+			$pdo = \WHMCS\Database\Capsule::connection()->getPdo();
 
-	$result = mysql_query($query);
-	//Add level field for Pro-Sites
-	$col = mysql_query("SELECT `level` FROM `mod_whmcs_multisite`");
-
-	if( !$col ) {
-		$query = "ALTER TABLE `mod_whmcs_multisite` ADD `level` INT NULL";
-		mysql_query( $query ); exit;
+			// Create Custom DB Table if it doesn't exist
+			$pdo->exec("CREATE TABLE IF NOT EXISTS `mod_whmcs_multisite` (
+				`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				`blog_id` INT NOT NULL,
+				`service_id` INT NOT NULL,
+				`domain` TEXT NOT NULL,
+				`path` TEXT NOT NULL,
+				`level` INT NULL DEFAULT 0,
+				KEY `service_id` (`service_id`, `blog_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		} else {
+			// Use legacy WHMCS functions if available
+			full_query("CREATE TABLE IF NOT EXISTS `mod_whmcs_multisite` (
+				`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				`blog_id` INT NOT NULL,
+				`service_id` INT NOT NULL,
+				`domain` TEXT NOT NULL,
+				`path` TEXT NOT NULL,
+				`level` INT NULL DEFAULT 0,
+				KEY `service_id` (`service_id`, `blog_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		}
+	} catch (\Exception $e) {
+		logModuleCall('whmcs_multisite', 'activate', 'Database Error', $e->getMessage(), '', []);
 	}
 }
 
@@ -107,20 +123,24 @@ function whmcs_multisite_upgrade($vars) {
 function whmcs_multisite_output($vars) {
 	$modulelink = $vars['modulelink'];
 	$version = $vars['version'];
-	$option1 = $vars['option1'];
-	$option2 = $vars['option2'];
-	$option3 = $vars['option3'];
-	$option4 = $vars['option4'];
-	$option5 = $vars['option5'];
-	$LANG = $vars['_lang'];
+	$option1 = $vars['option1'] ?? '';
+	$option2 = $vars['option2'] ?? '';
+	$option3 = $vars['option3'] ?? '';
+	$option4 = $vars['option4'] ?? '';
+	$option5 = $vars['option5'] ?? '';
+	$LANG = $vars['_lang'] ?? [];
 	/*
 	echo 'output';
 	echo '<p>'.$LANG['intro'].'</p>
 	<p>'.$LANG['description'].'</p>
 	<p>'.$LANG['documentation'].'</p>';
 	*/
-	echo "<p>Version: $version</p>";
-	echo "<p>With Pro-Sites support</p>";
+	echo "<div class='infobox'>";
+	echo "<h3>WHMCS Multisite Provisioning</h3>";
+	echo "<p><strong>Version:</strong> " . htmlspecialchars($version) . "</p>";
+	echo "<p><strong>Compatible with:</strong> WHMCS 8.x, WordPress 6.8.3+, PHP 8.1+</p>";
+	echo "<p><strong>Features:</strong> Pro-Sites support, Subdomain/Subdirectory/Domain Mapping</p>";
+	echo "</div>";
 
 }
 

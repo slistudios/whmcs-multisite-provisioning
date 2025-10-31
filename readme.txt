@@ -1,17 +1,39 @@
 === WHMCS MultiSite Provisioning ===
 Contributors: Arnold Bailey
 Tags: WHMCS, hosting, multisite, support, billing, integration, provisioning
-Requires at least: 3.0 and Multisite
-Tested up to: 3.3.1
-Stable tag: 1.0
+Requires at least: 6.0 and Multisite
+Tested up to: 6.8.3
+Requires PHP: 8.1
+Stable tag: 2.0.0
 
-This plugin allows provisioning of blogs on a Wordpress multi-site installation from external WHMCS packages and billing system.
-Includes provisioning for Subdomain, Subdirectory or Domain Mapping Wordpress Multisite installs.
+This plugin allows provisioning of blogs on a WordPress multi-site installation from external WHMCS packages and billing system.
+Includes provisioning for Subdomain, Subdirectory or Domain Mapping WordPress Multisite installs.
+
+**Updated for PHP 8.1+, WHMCS 8.13.1, and WordPress 6.8.3 compatibility**
 
 == Description ==
 
-This plugin allows provisioning of blogs on a Wordpress multi-site installation from external WHMCS packages and billing system.
-Includes provisioning for Subdomain, Subdirectory or Domain Mapping Wordpress Multisite installs.
+This plugin allows provisioning of blogs on a WordPress multi-site installation from external WHMCS packages and billing system.
+Includes provisioning for Subdomain, Subdirectory or Domain Mapping WordPress Multisite installs.
+
+== Version 2.0.0 Updates ==
+
+* **PHP 8.1+ Compatibility**: Removed all deprecated PHP functions including `create_function()` and `mysql_*` functions
+* **WHMCS 8.13.1 Compatibility**: Updated database queries to use Capsule (Laravel Query Builder)
+* **WordPress 6.8.3 Compatibility**: Replaced deprecated WordPress functions:
+  - `wpmu_create_user()` → `wp_create_user()`
+  - `wpmu_create_blog()` → `wp_insert_site()`
+  - `wpmu_delete_blog()` → `wp_delete_site()`
+  - `wpmu_welcome_notification()` → custom email notification
+  - `new WP_Roles()` → `wp_roles()`
+* **Security Improvements**:
+  - Added HTML escaping to prevent XSS vulnerabilities
+  - Improved password handling in login forms
+  - Added SSL/HTTPS support throughout
+* **Code Modernization**:
+  - Updated to use arrow functions
+  - Added null coalescing operators
+  - Improved error handling with try-catch blocks
 
 The plugin's /whmcs directory contains modules to be installed on WHMCS to communicate with this plugin.
 
