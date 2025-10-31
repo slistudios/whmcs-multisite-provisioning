@@ -295,11 +295,16 @@ function whmcs_multisite_TerminateAccount($params) {
 
 	$data = get_blog_data($params['serviceid']);
 
+	// Check if blog data exists
+	if (!$data || !isset($data['blog_id'])) {
+		return "Error: Blog data not found for this service. The site may not have been created successfully.";
+	}
+
 	$request = array();
 
 	$request['action'] = 'terminate';
 	$request['blog_id'] = $data['blog_id'];
-	$request['domain'] = $data['domain'];
+	$request['domain'] = $data['domain'] ?? '';
 	$request['credentials'] = $credentials;
 
 	$whmcs = array('whmcs' => $request);
@@ -345,11 +350,16 @@ function whmcs_multisite_SuspendAccount($params) {
 
 	$data = get_blog_data($params['serviceid']);
 
+	// Check if blog data exists
+	if (!$data || !isset($data['blog_id'])) {
+		return "Error: Blog data not found for this service. The site may not have been created successfully.";
+	}
+
 	$request = array();
 
 	$request['action'] = 'suspend';
 	$request['blog_id'] = $data['blog_id'];
-	$request['domain'] = $data['domain'];
+	$request['domain'] = $data['domain'] ?? '';
 	$request['credentials'] = $credentials;
 
 	$whmcs = array('whmcs' => $request);
@@ -391,10 +401,16 @@ function whmcs_multisite_ChangePackage($params) {
 
 	$service_id = $params['serviceid'];
 	$data = get_blog_data($params['serviceid']);
+
+	// Check if blog data exists
+	if (!$data || !isset($data['blog_id'])) {
+		return "Error: Blog data not found for this service. The site may not have been created successfully.";
+	}
+
 	$request = array();
 	$request['action'] = 'changepackage';
 	$request['blog_id'] = $data['blog_id'];
-	$request['domain'] = $data['domain'];
+	$request['domain'] = $data['domain'] ?? '';
 	$request['credentials'] = $credentials;
 	$request['level'] = $params['configoption8'];
 	$whmcs = array('whmcs' => $request);
@@ -433,11 +449,16 @@ function whmcs_multisite_UnsuspendAccount($params) {
 
 	$data = get_blog_data($params['serviceid']);
 
+	// Check if blog data exists
+	if (!$data || !isset($data['blog_id'])) {
+		return "Error: Blog data not found for this service. The site may not have been created successfully.";
+	}
+
 	$request = array();
 
 	$request['action'] = 'unsuspend';
 	$request['blog_id'] = $data['blog_id'];
-	$request['domain'] = $data['domain'];
+	$request['domain'] = $data['domain'] ?? '';
 	$request['credentials'] = $credentials;
 
 	$whmcs = array('whmcs' => $request);
@@ -487,11 +508,16 @@ function whmcs_multisite_ChangePassword($params) {
 
 	$data = get_blog_data($params['serviceid']);
 
+	// Check if blog data exists
+	if (!$data || !isset($data['blog_id'])) {
+		return "Error: Blog data not found for this service. The site may not have been created successfully.";
+	}
+
 	$request = array();
 
 	$request['action'] = 'password';
 	$request['blog_id'] = $data['blog_id'];
-	$request['domain'] = $data['domain'];
+	$request['domain'] = $data['domain'] ?? '';
 	$request['user_name'] = $username;
 	$request['password'] = $password;
 	$request['email'] = $clientsdetails['email'];
