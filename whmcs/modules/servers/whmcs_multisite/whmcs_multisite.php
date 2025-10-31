@@ -32,10 +32,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// Define module version constant
+if( !defined('WPMU_WHMCS_SERVER_VERSION') ) {
+	define('WPMU_WHMCS_SERVER_VERSION', '2.0');
+}
 
 function whmcs_multisite_ConfigOptions() {
-
-	if( !defined('WPMU_WHMCS_SERVER_VERSION') ) define('WPMU_WHMCS_SERVER_VERSION', '2.0');
 
 	# Should return an array of the module options for each product - maximum of 24
 
